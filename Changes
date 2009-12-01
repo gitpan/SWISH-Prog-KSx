@@ -1,5 +1,8 @@
 Revision history for SWISH-Prog-KSx
 
-0.01    xxx
-        First version, released on an unsuspecting world.
+0.01    29 Nov 2009
+    * First version, released on an unsuspecting world.
+
+0.02    1 Dec 2009
+    * POD fixes
 

@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -23,7 +23,18 @@ SWISH::Prog::KSx::Searcher - search Swish3 KinoSearch backend
 SWISH::Prog::KSx::Searcher is a KinoSearch-based Searcher
 class for Swish3.
 
+SWISH::Prog::KSx::Searcher is not made to replace the more fully-featured
+KinoSearch::Searcher class and its friends. Instead, SWISH::Prog::KSx::Searcher
+provides a simple API similar to other SWISH::Prog::Searcher-based backends
+so that you can experiment with alternate
+storage engines without needing to change much code.
+When your search application requirements become more complex, the author
+recommends the switch to using KinoSearch::Searcher directly.
+
 =head1 METHODS
+
+Only new and overridden methods are documented here. See
+the L<SWISH::Prog::Searcher> documentation.
 
 =head2 init
 
@@ -58,7 +69,8 @@ The starting position. Default is 0.
 
 =item max
 
-The ending position. Default is max_hits().
+The ending position. Default is max_hits() as documented 
+in SWISH::Prog::Searcher.
 
 =item order
 
@@ -119,6 +131,10 @@ You can find documentation for this module with the perldoc command.
 You can also look for information at:
 
 =over 4
+
+=item * Mailing list
+
+L<http://lists.swish-e.org/listinfo/users>
 
 =item * RT: CPAN's request tracker
 

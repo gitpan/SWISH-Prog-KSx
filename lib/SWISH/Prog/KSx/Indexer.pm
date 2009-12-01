@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
@@ -23,7 +23,12 @@ SWISH::Prog::KSx::Indexer - Swish3 KinoSearch indexer
 
 =head1 SYNOPSIS
 
- # see SWISH::Prog::Indexer
+ use SWISH::Prog::KSx::Indexer;
+ my $indexer = SWISH::Prog::KSx::Indexer->new(
+    config      => SWISH::Prog::Config->new(),
+    invindex    => SWISH::Prog::KSx::InvIndex->new(),
+    
+ );
 
 =head1 DESCRIPTION
 
@@ -31,6 +36,9 @@ SWISH::Prog::KSx::Indexer is a KinoSearch-based indexer
 class for Swish3.
 
 =head1 METHODS
+
+Only new and overridden methods are documented here. See
+the L<SWISH::Prog::Indexer> documentation.
 
 =head2 init
 
@@ -101,7 +109,7 @@ sub init {
 =head2 process( I<doc> )
 
 Overrides base method to parse the I<doc> (a SWISH::Prog::Doc object)
-with SWISH::3->parse_buffer() method.
+with the SWISH::3 parse_buffer() method.
 
 =cut
 
@@ -131,8 +139,9 @@ sub _handler {
 
 =head2 finish
 
-Calls SUPER::finish() and sets the internal SWISH::3 object to undef
-in order to avoid spurious memory warnings during Perl's garbage collection.
+Calls commit() on the internal KinoSearch::Indexer object,
+writes the C<swish.xml> header file and calls the superclass finish()
+method.
 
 =cut
 
@@ -179,6 +188,10 @@ You can find documentation for this module with the perldoc command.
 You can also look for information at:
 
 =over 4
+
+=item * Mailing list
+
+L<http://lists.swish-e.org/listinfo/users>
 
 =item * RT: CPAN's request tracker
 

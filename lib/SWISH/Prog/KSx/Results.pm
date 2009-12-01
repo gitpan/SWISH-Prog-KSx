@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Results;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use base qw( SWISH::Prog::Results );
 use SWISH::Prog::KSx::Result;
@@ -23,6 +23,9 @@ SWISH::Prog::KSx::Results is a KinoSearch-based Results
 class for Swish3.
 
 =head1 METHODS
+
+Only new and overridden methods are documented here. See
+the L<SWISH::Prog::Results> documentation.
 
 =head2 next
 
@@ -68,6 +71,10 @@ You can find documentation for this module with the perldoc command.
 You can also look for information at:
 
 =over 4
+
+=item * Mailing list
+
+L<http://lists.swish-e.org/listinfo/users>
 
 =item * RT: CPAN's request tracker
 

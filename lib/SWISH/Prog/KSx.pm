@@ -2,7 +2,7 @@ package SWISH::Prog::KSx;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 NAME
 
@@ -23,7 +23,7 @@ SWISH::Prog::KSx - Swish3 KinoSearch backend
  
  
  # then search the index
- my $searcher = SWISH::Prog::Xapian::Searcher->new(
+ my $searcher = SWISH::Prog::KSx::Searcher->new(
     invindex => 'path/to/index.swish',
     config   => 'path/to/swish.conf',
  );
@@ -35,10 +35,43 @@ SWISH::Prog::KSx - Swish3 KinoSearch backend
 
 =head1 DESCRIPTION
 
+B<STOP>: Read the L<SWISH::Prog> documentation before you use this
+module.
+
 SWISH::Prog::KSx is a KinoSearch-based implementation of Swish3,
 using the SWISH::3 bindings for libswish3.
 
-See the Swish3 development site at http://dev.swish-e.org/wiki/swish3
+See the L<SWISH::Prog> docs for more information about the class
+hierarchy and history.
+
+See the Swish3 development site at L<http://dev.swish-e.org/wiki/swish3>.
+
+=head1 Why Not Use KinoSearch Directly?
+
+You can use KinoSearch directly. Using KinoSearch via SWISH::Prog::KSx
+offers a few advantages:
+
+=over
+
+=item Aggregators and Filters
+
+You get to use all of SWISH::Prog's Aggregators and SWISH::Filter support.
+So you can easily index all kinds of file formats 
+(email, .txt, .html, .xml, .pdf, .doc, .xls, etc) 
+without writing your own parser.
+
+=item SWISH::3
+
+SWISH::3 offers fast and robust XML and HTML parsers 
+with an extensible configuration system, build on top of libxml2.
+
+=item Simple now, complex later
+
+You can index your content with SWISH::Prog::KSx,
+then build a more complex searching application directly
+with KinoSearch.
+
+=back
 
 =head1 AUTHOR
 
@@ -59,6 +92,10 @@ You can find documentation for this module with the perldoc command.
 You can also look for information at:
 
 =over 4
+
+=item * Mailing list
+
+L<http://lists.swish-e.org/listinfo/users>
 
 =item * RT: CPAN's request tracker
 
@@ -88,6 +125,10 @@ by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
 
+=head1 SEE ALSO
+
+L<SWISH::Prog>, L<KinoSearch>
+
 =cut
 
-1;    # End of SWISH::Prog::KSx
+1;
