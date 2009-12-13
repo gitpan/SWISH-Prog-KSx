@@ -6,3 +6,8 @@ Revision history for SWISH-Prog-KSx
 0.02    1 Dec 2009
     * POD fixes
 
+0.03    12 Dec 2009
+    * support SWISH::3::Config format internally.
+      Can now read Swish-e 2.4.x config files and apply
+      them to Swish3 format.
+

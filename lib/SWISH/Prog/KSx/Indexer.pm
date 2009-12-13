@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
@@ -52,10 +52,6 @@ sub init {
     my $self = shift;
     $self->SUPER::init(@_);
 
-    # default config
-    $self->{config} ||= SWISH::Prog::Config->new;
-
-    # default index
     $self->{invindex} ||= SWISH::Prog::KSx::InvIndex->new;
 
     if ( $self->{invindex} && !blessed( $self->{invindex} ) ) {
@@ -68,20 +64,35 @@ sub init {
             . " requires SWISH::Prog::Xapian::InvIndex-derived object";
     }
 
-    # TODO XML-ify $self->{config} and pass in to parser too.
-    $self->{s3} = SWISH::3->new(
+    # config resolution order
+    # 1. default config via SWISH::3->new
+
+    # TODO can pass s3 in?
+    $self->{s3} ||= SWISH::3->new(
         handler => sub {
             $self->_handler(@_);
         }
     );
-    $self->{s3}->analyzer->set_tokenize(0);    # let KS do it
 
-    # so Headers uses correct version
-    $ENV{SWISH3} = 1;
+    # 2. any existing header file.
+    my $swish_3_index = $self->invindex->path->file( SWISH_HEADER_FILE() );
+    if ( -r $swish_3_index ) {
+        $self->{s3}->config->read("$swish_3_index");
+    }
+
+    # 3. via 'config' param passed to this method
+    if ( exists $self->{config} ) {
+
+        # this utility method defined in base SWISH::Prog::Indexer class.
+        $self->_verify_swish3_config();
+    }
+
+    # 4. always turn off tokenizer, preferring KS do it
+    $self->{s3}->analyzer->set_tokenize(0);
 
     my $schema   = KinoSearch::Schema->new();
     my $analyzer = KinoSearch::Analysis::PolyAnalyzer->new(
-        language => 'en',                      # TODO config
+        language => 'en',    # TODO via config
     );
     my $fulltext_type = KinoSearch::FieldType::FullTextType->new(
         analyzer      => $analyzer,
@@ -97,7 +108,8 @@ sub init {
         $schema->spec_field( name => $d, type => $string_type );
     }
 
-    $self->{ks} = KinoSearch::Indexer->new(
+    # TODO can pass ks in?
+    $self->{ks} ||= KinoSearch::Indexer->new(
         schema => $schema,
         index  => $self->invindex->path,
         create => 1,

@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Results;
 use strict;
 use warnings;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use base qw( SWISH::Prog::Results );
 use SWISH::Prog::KSx::Result;
@@ -37,7 +37,7 @@ sub next {
     my $hit = $_[0]->ks_hits->next or return;
     return SWISH::Prog::KSx::Result->new(
         doc   => $hit,
-        score => int( $hit->get_score * 10000 ),  # scale like xapian, swish-e
+        score => int( $hit->get_score * 1000 ),  # scale like xapian, swish-e
     );
 }
 

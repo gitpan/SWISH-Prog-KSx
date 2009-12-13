@@ -22,7 +22,7 @@ WriteMakefile(
     PREREQ_PM => {
         'Test::More'  => 0,
         'KinoSearch'  => '0.30_07',    # developed against this version
-        'SWISH::Prog' => 0.30,
+        'SWISH::Prog' => 0.32,         # SWISH::3::Config support
         'SWISH::3'    => 0.02,
     },
     dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
