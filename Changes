@@ -11,3 +11,6 @@ Revision history for SWISH-Prog-KSx
       Can now read Swish-e 2.4.x config files and apply
       them to Swish3 format.
 
+0.04    02 Jan 2010
+    * fix mem leaks, config use.
+

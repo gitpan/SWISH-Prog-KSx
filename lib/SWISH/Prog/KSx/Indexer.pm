@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
@@ -74,10 +74,14 @@ sub init {
         }
     );
 
+    #SWISH::3->describe( $self->{s3} );
+
     # 2. any existing header file.
-    my $swish_3_index = $self->invindex->path->file( SWISH_HEADER_FILE() );
+    my $swish_3_index
+        = $self->invindex->path->file( SWISH_HEADER_FILE() )->stringify;
+
     if ( -r $swish_3_index ) {
-        $self->{s3}->config->read("$swish_3_index");
+        $self->{s3}->config->add($swish_3_index);
     }
 
     # 3. via 'config' param passed to this method
@@ -145,6 +149,7 @@ sub _handler {
     }
 
     # TODO flesh %doc out with properties
+    #warn dump \%doc;
 
     $self->{ks}->add_doc( \%doc );
 }

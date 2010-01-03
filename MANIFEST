@@ -10,6 +10,7 @@ MANIFEST
 README
 t/00-load.t
 t/01-fs.t
+t/02-leak-trace.t
 t/config.xml
 t/pod-coverage.t
 t/pod.t
