@@ -1,5 +1,6 @@
 use Test::More tests => 13;
 use strict;
+use Data::Dump qw( dump );
 
 use_ok('SWISH::Prog');
 use_ok('SWISH::Prog::KSx::InvIndex');
@@ -41,6 +42,8 @@ ok( my $searcher = SWISH::Prog::KSx::Searcher->new(
 );
 
 ok( my $results = $searcher->search('test'), "search()" );
+
+#diag( dump $results );
 
 is( $results->hits, 1, "1 hit" );
 

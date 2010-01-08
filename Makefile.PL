@@ -23,7 +23,7 @@ WriteMakefile(
         'Test::More'  => 0,
         'KinoSearch'  => '0.30_07',    # developed against this version
         'SWISH::Prog' => 0.32,         # SWISH::3::Config support
-        'SWISH::3'    => 0.02,
+        'SWISH::3'    => 0.04,         # mem leak fixes in >= 0.04
     },
     dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'SWISH-Prog-KSx-* t/index.swish' },

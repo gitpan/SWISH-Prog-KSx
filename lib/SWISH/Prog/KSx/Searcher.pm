@@ -2,13 +2,16 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use base qw( SWISH::Prog::Searcher );
 
 use Carp;
+use SWISH::3;
 use SWISH::Prog::KSx::Results;
 use KinoSearch::Searcher;
+use KinoSearch::Analysis::PolyAnalyzer;
+use KinoSearch::QueryParser;
 
 =head1 NAME
 
@@ -46,10 +49,21 @@ sub init {
     my $self = shift;
     $self->SUPER::init(@_);
 
-    #Data::Dump::dump($self);
-
     my $invindex = $self->invindex;
+    my $config   = $invindex->meta;
+    my $lang     = $config->Index->{ SWISH::3::SWISH_INDEX_STEMMER_LANG() };
     $self->{ks} = KinoSearch::Searcher->new( index => "$invindex" );
+    $self->{analyzer}
+        = KinoSearch::Analysis::PolyAnalyzer->new( language => $lang, );
+    $self->{qp} = KinoSearch::QueryParser->new(
+
+        # only need to explicitly declare fields if we do not want
+        # all the fields defined in schema.
+        #fields   => [ SWISH::3::SWISH_DOC_FIELDS(), 'swishdefault' ],
+        schema   => $self->{ks}->get_schema,
+        analyzer => $self->{analyzer},
+    );
+    $self->{qp}->set_heed_colons(1);
 
     return $self;
 }
@@ -92,7 +106,7 @@ sub search {
     my $order = $opts->{order};
 
     my %hits_args = (
-        query      => $query,
+        query      => $self->{qp}->parse("$query"),
         offset     => $start,
         num_wanted => $max,
     );
@@ -104,6 +118,7 @@ sub search {
         hits    => $hits->total_hits,
         ks_hits => $hits,
     );
+    $results->{_args} = \%hits_args;
     return $results;
 }
 
