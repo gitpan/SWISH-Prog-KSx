@@ -2,10 +2,11 @@ package SWISH::Prog::KSx::Result;
 use strict;
 use warnings;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use base qw( SWISH::Prog::Result );
 use SWISH::3 ':constants';
+use Carp;
 
 =head1 NAME
 
@@ -33,7 +34,7 @@ Returns the uri (unique term) for the result document.
 
 =cut
 
-sub uri { $_[0]->{doc}->{uri} }
+sub uri { $_[0]->{doc}->{swishdocpath} }
 
 =head2 title
 
@@ -42,6 +43,37 @@ Returns the title of the result document.
 =cut
 
 sub title { $_[0]->{doc}->{swishtitle} }
+
+=head2 mtime
+
+Returns the last modified time of the result document.
+
+=cut
+
+sub mtime { $_[0]->{doc}->{swishlastmodified} }
+
+=head2 summary
+
+Returns the swishdescription of the result document.
+
+=cut
+
+sub summary { $_[0]->{doc}->{swishdescription} }
+
+=head2 get_property( I<PropertyName> )
+
+Returns the value for I<PropertyName>.
+
+=cut
+
+sub get_property {
+    my $self = shift;
+    my $propname = shift or croak "PropertyName required";
+    if ( !exists $self->{doc}->{$propname} ) {
+        croak "no such PropertyName: $propname";
+    }
+    return $self->{doc}->{$propname};
+}
 
 1;
 

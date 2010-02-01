@@ -1,4 +1,4 @@
-use Test::More tests => 13;
+use Test::More tests => 17;
 use strict;
 use Data::Dump qw( dump );
 
@@ -36,7 +36,6 @@ is( $program->count, 2, "indexed test docs" );
 
 ok( my $searcher = SWISH::Prog::KSx::Searcher->new(
         invindex => 't/index.swish',
-        config   => 't/test.conf',
     ),
     "new searcher"
 );
@@ -54,6 +53,32 @@ is( $result->uri, 't/test.html', 'get uri' );
 is( $result->title, "test html doc", "get title" );
 
 diag( $result->score );
+
+# test some search() features
+# NOTE these only available in KS version > 0.30072
+
+SKIP: {
+
+    if ( $KinoSearch::VERSION <= 0.30072 and !$ENV{TEST_LIMIT_FEATURE} ) {
+        skip
+            "limit feature avaiable in KinoSearch version > 0.30072 -- you have $KinoSearch::VERSION",
+            4;
+    }
+
+    ok( my $results2 = $searcher->search(
+            'some', { limit => [ [qw( date 2010-01-01 2010-12-31 )] ] }
+        ),
+        "search()"
+    );
+    is( $results2->hits, 1, "1 hit" );
+    while ( my $result2 = $results2->next ) {
+        diag( $result2->uri );
+        is( $result2->uri,   't/test.xml',  'get uri' );
+        is( $result2->title, "ima xml doc", "get title" );
+        diag( $result2->score );
+    }
+
+}
 
 END {
     unless ( $ENV{PERL_DEBUG} ) {

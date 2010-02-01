@@ -1,1 +1,7 @@
-<foo>some words here in xml doc</foo>
+<doc>
+ <title>ima xml doc</title>
+ <foo>some words here in xml doc</foo>
+ <bar>chocolate bar</bar>
+ <date>2010-01-12</date>
+ <timestamp>20100112</timestamp>
+</doc>

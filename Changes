@@ -17,4 +17,10 @@ Revision history for SWISH-Prog-KSx
 0.05    07 Jan 2009
     * add fielded search support.
 
-
+0.06    01 Feb 2010
+    * add properties to index as stored but non-analyzed fields.
+    * alias_for meta/props not created as fields (TODO queryparser
+      mapping)
+    * RangeQuery support added with search($query, { limit => $limit })
+    * PolySearcher always used internall, 
+      supporting multiple invindex simultaneously.

@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -10,8 +10,11 @@ use Carp;
 use SWISH::3;
 use SWISH::Prog::KSx::Results;
 use KinoSearch::Searcher;
+use KinoSearch::Search::PolySearcher;
 use KinoSearch::Analysis::PolyAnalyzer;
 use KinoSearch::QueryParser;
+use KinoSearch::Search::RangeQuery;
+use Data::Dump qw( dump );
 
 =head1 NAME
 
@@ -49,10 +52,20 @@ sub init {
     my $self = shift;
     $self->SUPER::init(@_);
 
-    my $invindex = $self->invindex;
+    # load meta from the first invindex
+    my $invindex = $self->invindex->[0];
     my $config   = $invindex->meta;
     my $lang     = $config->Index->{ SWISH::3::SWISH_INDEX_STEMMER_LANG() };
-    $self->{ks} = KinoSearch::Searcher->new( index => "$invindex" );
+
+    my @searchables;
+    for my $idx ( @{ $self->invindex } ) {
+        my $searcher = KinoSearch::Searcher->new( index => "$idx" );
+        push @searchables, $searcher;
+    }
+    $self->{ks} = KinoSearch::Search::PolySearcher->new(
+        schema      => $searchables[0]->get_schema,
+        searchables => \@searchables,
+    );
     $self->{analyzer}
         = KinoSearch::Analysis::PolyAnalyzer->new( language => $lang, );
     $self->{qp} = KinoSearch::QueryParser->new(
@@ -60,8 +73,9 @@ sub init {
         # only need to explicitly declare fields if we do not want
         # all the fields defined in schema.
         #fields   => [ SWISH::3::SWISH_DOC_FIELDS(), 'swishdefault' ],
-        schema   => $self->{ks}->get_schema,
-        analyzer => $self->{analyzer},
+        schema         => $self->{ks}->get_schema,
+        analyzer       => $self->{analyzer},
+        default_boolop => 'AND',                     # like swish-e
     );
     $self->{qp}->set_heed_colons(1);
 
@@ -91,6 +105,15 @@ in SWISH::Prog::Searcher.
 Takes a KinoSearch::Search::SortSpec object, which will determine
 the sort order.
 
+TODO this should accept a simple string like the Native Searcher
+does.
+
+=item limit
+
+Takes an arrayref of arrayrefs. Each child arrayref should
+have three values: a field (PropertyName) value, a lower limit
+and an upper limit.
+
 =back
 
 =cut
@@ -101,15 +124,32 @@ sub search {
     croak "query required" unless defined $query;
     my $opts = shift || {};
 
-    my $start = $opts->{start} || 0;
-    my $max   = $opts->{max}   || $self->max_hits;
-    my $order = $opts->{order};
+    my $start  = $opts->{start} || 0;
+    my $max    = $opts->{max}   || $self->max_hits;
+    my $order  = $opts->{order};
+    my $limits = $opts->{limit} || [];
 
     my %hits_args = (
         query      => $self->{qp}->parse("$query"),
         offset     => $start,
         num_wanted => $max,
     );
+
+    for my $limit (@$limits) {
+        if ( !ref $limit or ref($limit) ne 'ARRAY' or @$limit != 3 ) {
+            croak "poorly-formed limit. should be an array ref of 3 values.";
+        }
+        my $range = KinoSearch::Search::RangeQuery->new(
+            field      => $limit->[0],
+            lower_term => $limit->[1],
+            upper_term => $limit->[2],
+        );
+        $hits_args{query}
+            = $self->{qp}->make_and_query( [ $range, $hits_args{query} ] );
+    }
+
+    #carp dump $hits_args{query}->dump;
+
     if ($order) {
         $hits_args{sort_spec} = $order;
     }

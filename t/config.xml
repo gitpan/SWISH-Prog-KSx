@@ -1,3 +1,17 @@
 <swish>
  <SomeDirective>true</SomeDirective>
+ <PropertyNames>
+  <foobar />
+  <bar alias_for="foobar" />
+  <date />
+  <timestamp />
+ </PropertyNames>
+ <MetaNames>
+  <date />
+  <timestamp />
+  <foobar /><!-- NO alias bar -->
+ </MetaNames>
+ <TagAlias>
+  <swishdescription>foo</swishdescription>
+ </TagAlias>
 </swish>

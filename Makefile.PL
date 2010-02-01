@@ -21,7 +21,7 @@ WriteMakefile(
     PL_FILES  => {},
     PREREQ_PM => {
         'Test::More'  => 0,
-        'KinoSearch'  => '0.30_07',    # developed against this version
+        'KinoSearch'  => '0.30_08',    # developed against this version
         'SWISH::Prog' => 0.32,         # SWISH::3::Config support
         'SWISH::3'    => 0.04,         # mem leak fixes in >= 0.04
     },

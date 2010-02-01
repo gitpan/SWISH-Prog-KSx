@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
@@ -107,26 +107,52 @@ sub init {
 
     my $metanames = $config->get_metanames;
     for my $name ( @{ $metanames->keys } ) {
-
-        #my $metaname = $metanames->get($name);
-        $fields{$name}->{is_meta} = 1;
+        my $alias = $metanames->get($name)->alias_for;
+        $fields{$name}->{is_meta}       = 1;
+        $fields{$name}->{is_meta_alias} = $alias;
     }
 
     my $properties = $config->get_properties;
     for my $name ( @{ $properties->keys } ) {
         my $property = $properties->get($name);
-        $fields{$name}->{is_prop} = 1;
+        my $alias    = $property->alias_for;
+        $fields{$name}->{is_prop}       = 1;
+        $fields{$name}->{is_prop_alias} = $alias;
         if ( $property->sort ) {
             $fields{$name}->{sortable} = 1;
         }
     }
 
-    #dump( \%fields );
+    $self->{_fields} = \%fields;
 
-    my $metaname_plus_prop = KinoSearch::FieldType::FullTextType->new(
-        analyzer      => $analyzer,
-        highlightable => 1,
-    );
+    # versions > 0.30072 allow for sortable fulltexttype
+    # but svn trunk is version 0.3007 so we can't just test $VERSION
+    my ( $meta_and_prop_sortable, $meta_and_prop_nosortable );
+
+    eval {
+        $meta_and_prop_sortable = KinoSearch::FieldType::FullTextType->new(
+            analyzer      => $analyzer,
+            highlightable => 1,
+            sortable      => 1,
+        );
+        $meta_and_prop_nosortable = KinoSearch::FieldType::FullTextType->new(
+            analyzer      => $analyzer,
+            highlightable => 1,
+            sortable      => 0,
+        );
+    };
+
+    if ( !$meta_and_prop_sortable ) {
+        $meta_and_prop_sortable = KinoSearch::FieldType::FullTextType->new(
+            analyzer      => $analyzer,
+            highlightable => 1,
+        );
+        $meta_and_prop_nosortable = KinoSearch::FieldType::FullTextType->new(
+            analyzer      => $analyzer,
+            highlightable => 1,
+        );
+    }
+
     my $metaname_only = KinoSearch::FieldType::FullTextType->new(
         analyzer => $analyzer,
         stored   => 0,
@@ -140,22 +166,59 @@ sub init {
 
     for my $name ( keys %fields ) {
         my $field = $fields{$name};
+        my $key   = $name;
+
+        # if a field is purely an alias, skip it.
+        if (    defined $field->{is_meta_alias}
+            and defined $field->{is_prop_alias} )
+        {
+            $field->{store_as}->{ $field->{is_meta_alias} } = 1;
+            $field->{store_as}->{ $field->{is_prop_alias} } = 1;
+            next;
+        }
+
         if ( $field->{is_meta} and !$field->{is_prop} ) {
+            if ( defined $field->{is_meta_alias} ) {
+                $key = $field->{is_meta_alias};
+                $field->{store_as}->{$key} = 1;
+                next;
+            }
             $schema->spec_field(
                 name => $name,
                 type => $metaname_only
             );
         }
+
+        # this is the trickiest case, because the field
+        # is both prop+meta and could be an alias for one
+        # and a real for the other.
+        # NOTE we have already eliminated (above) the case where
+        # the field is an alias for both.
         elsif ( $field->{is_meta} and $field->{is_prop} ) {
+            if ( defined $field->{is_meta_alias} ) {
+                $key = $field->{is_meta_alias};
+                $field->{store_as}->{$key} = 1;
+            }
+            elsif ( defined $field->{is_prop_alias} ) {
+                $key = $field->{is_prop_alias};
+                $field->{store_as}->{$key} = 1;
+            }
             $schema->spec_field(
                 name => $name,
-                type => $metaname_plus_prop
+                type => $field->{sortable}
+                ? $meta_and_prop_sortable
+                : $meta_and_prop_nosortable,
             );
         }
         elsif (!$field->{is_meta}
             and $field->{is_prop}
             and !$field->{sortable} )
         {
+            if ( defined $field->{is_prop_alias} ) {
+                $key = $field->{is_prop_alias};
+                $field->{store_as}->{$key} = 1;
+                next;
+            }
             $schema->spec_field(
                 name => $name,
                 type => $store_no_sort
@@ -165,18 +228,27 @@ sub init {
             and $field->{is_prop}
             and $field->{sortable} )
         {
+            if ( defined $field->{is_prop_alias} ) {
+                $key = $field->{is_prop_alias};
+                $field->{store_as}->{$key} = 1;
+                next;
+            }
             $schema->spec_field(
                 name => $name,
                 type => $property_only
             );
         }
+        $field->{store_as}->{$name} = 1;
     }
 
-    for my $d ( SWISH_DOC_FIELDS() ) {
+    my $built_in_props = SWISH_DOC_PROP_MAP();
+    for my $d ( keys %$built_in_props ) {
         unless ( exists $fields{$d} ) {
             $schema->spec_field( name => $d, type => $property_only );
         }
     }
+
+    #dump( \%fields );
 
     # TODO can pass ks in?
     $self->{ks} ||= KinoSearch::Indexer->new(
@@ -204,17 +276,40 @@ sub process {
 
 sub _handler {
     my ( $self, $data ) = @_;
+    my $config     = $data->config;
+    my $conf_props = $config->get_properties;
+    my $conf_metas = $config->get_metanames;
     my %doc;
-    for my $d ( SWISH_DOC_FIELDS() ) {
-        $doc{$d} = $data->doc->$d;
+    my $doc_prop_map = SWISH_DOC_PROP_MAP();
+    for my $propname ( keys %$doc_prop_map ) {
+        my $attr = $doc_prop_map->{$propname};
+        $doc{$propname} = [ $data->doc->$attr ];
     }
+    my $props = $data->properties;
     my $metas = $data->metanames;
+    for my $fname ( sort keys %{ $self->{_fields} } ) {
+        my $field = $self->{_fields}->{$fname};
 
-    for my $m ( keys %$metas ) {
-        $doc{$m} = join( "\n", @{ $metas->{$m} } );
+        my @keys = keys %{ $field->{store_as} };
+
+        for my $key (@keys) {
+            if ( $field->{is_prop} ) {
+                push( @{ $doc{$key} }, @{ $props->{$fname} } );
+            }
+            elsif ( $field->{is_meta} ) {
+                push( @{ $doc{$key} }, @{ $metas->{$fname} } );
+            }
+            else {
+                croak "field '$fname' is neither a PropertyName nor MetaName";
+            }
+        }
     }
 
-    # TODO flesh %doc out with properties
+    # serialize the doc with our tokenpos_bump char
+    for my $k ( keys %doc ) {
+        $doc{$k} = join( "\003", @{ $doc{$k} } );
+    }
+
     #warn dump \%doc;
 
     $self->{ks}->add_doc( \%doc );
