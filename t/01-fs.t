@@ -1,4 +1,4 @@
-use Test::More tests => 17;
+use Test::More tests => 20;
 use strict;
 use Data::Dump qw( dump );
 
@@ -34,9 +34,8 @@ ok( $program->index('t/'), "run program" );
 
 is( $program->count, 2, "indexed test docs" );
 
-ok( my $searcher = SWISH::Prog::KSx::Searcher->new(
-        invindex => 't/index.swish',
-    ),
+ok( my $searcher
+        = SWISH::Prog::KSx::Searcher->new( invindex => 't/index.swish', ),
     "new searcher"
 );
 
@@ -54,31 +53,31 @@ is( $result->title, "test html doc", "get title" );
 
 diag( $result->score );
 
-# test some search() features
-# NOTE these only available in KS version > 0.30072
-
-SKIP: {
-
-    if ( $KinoSearch::VERSION <= 0.30072 and !$ENV{TEST_LIMIT_FEATURE} ) {
-        skip
-            "limit feature avaiable in KinoSearch version > 0.30072 -- you have $KinoSearch::VERSION",
-            4;
-    }
-
-    ok( my $results2 = $searcher->search(
-            'some', { limit => [ [qw( date 2010-01-01 2010-12-31 )] ] }
-        ),
-        "search()"
-    );
-    is( $results2->hits, 1, "1 hit" );
-    while ( my $result2 = $results2->next ) {
-        diag( $result2->uri );
-        is( $result2->uri,   't/test.xml',  'get uri' );
-        is( $result2->title, "ima xml doc", "get title" );
-        diag( $result2->score );
-    }
-
+# test limit
+ok( my $results2 = $searcher->search(
+        'some', { limit => [ [qw( date 2010-01-01 2010-12-31 )] ] }
+    ),
+    "search()"
+);
+is( $results2->hits, 1, "1 hit" );
+while ( my $result2 = $results2->next ) {
+    diag( $result2->uri );
+    is( $result2->uri,   't/test.xml',  'get uri' );
+    is( $result2->title, "ima xml doc", "get title" );
+    diag( $result2->score );
 }
+
+# test sort
+ok( my $results3
+        = $searcher->search( 'some', { order => 'swishdocpath asc' } ),
+    "search()"
+);
+is( $results3->hits, 2, "2 hits" );
+my @results;
+while ( my $result3 = $results3->next ) {
+    push @results, $result3->swishdocpath;
+}
+is_deeply( \@results, [qw( t/test.html t/test.xml )], "results sorted ok" );
 
 END {
     unless ( $ENV{PERL_DEBUG} ) {

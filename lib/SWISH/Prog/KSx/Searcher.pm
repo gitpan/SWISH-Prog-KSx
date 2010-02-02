@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -14,7 +14,10 @@ use KinoSearch::Search::PolySearcher;
 use KinoSearch::Analysis::PolyAnalyzer;
 use KinoSearch::QueryParser;
 use KinoSearch::Search::RangeQuery;
+use KinoSearch::Search::SortRule;
+use KinoSearch::Search::SortSpec;
 use Data::Dump qw( dump );
+use Sort::SQL;
 
 =head1 NAME
 
@@ -102,11 +105,9 @@ in SWISH::Prog::Searcher.
 
 =item order
 
-Takes a KinoSearch::Search::SortSpec object, which will determine
+Takes a SQL-like text string (like SWISH::Prog::Native::Searcher)
+or a KinoSearch::Search::SortSpec object, which will determine
 the sort order.
-
-TODO this should accept a simple string like the Native Searcher
-does.
 
 =item limit
 
@@ -151,7 +152,33 @@ sub search {
     #carp dump $hits_args{query}->dump;
 
     if ($order) {
-        $hits_args{sort_spec} = $order;
+        if ( ref $order ) {
+
+            # assume it is a SortSpec object
+            $hits_args{sort_spec} = $order;
+        }
+        else {
+
+            # turn it into a SortSpec
+            my $sort_array = Sort::SQL->parse($order);
+            my @rules;
+            for my $pair (@$sort_array) {
+                if ( uc( $pair->[1] ) eq 'DESC' ) {
+                    push @rules,
+                        KinoSearch::Search::SortRule->new(
+                        field   => $pair->[0],
+                        reverse => 1,
+                        );
+                }
+                else {
+                    push @rules,
+                        KinoSearch::Search::SortRule->new(
+                        field => $pair->[0], );
+                }
+            }
+            $hits_args{sort_spec}
+                = KinoSearch::Search::SortSpec->new( rules => \@rules, );
+        }
     }
     my $hits    = $self->{ks}->hits(%hits_args);
     my $results = SWISH::Prog::KSx::Results->new(
