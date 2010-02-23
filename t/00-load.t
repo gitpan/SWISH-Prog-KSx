@@ -1,9 +1,15 @@
 #!perl -T
 
-use Test::More tests => 1;
+use Test::More tests => 2;
 
 BEGIN {
-    use_ok( 'SWISH::Prog::KSx' );
+    use_ok('SWISH::Prog::KSx');
+    use_ok('KinoSearch');
 }
 
-diag( "Testing SWISH::Prog::KSx $SWISH::Prog::KSx::VERSION, Perl $], $^X" );
+diag(
+    join( ' ',
+        "Testing SWISH::Prog::KSx $SWISH::Prog::KSx::VERSION",
+        "KinoSearch $KinoSearch::VERSION",
+        ", Perl $], $^X" )
+);

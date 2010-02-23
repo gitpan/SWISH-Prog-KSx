@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
@@ -311,6 +311,12 @@ sub _handler {
     }
 
     #warn dump \%doc;
+
+    # make sure we delete any existing doc with same URI
+    $self->{ks}->delete_by_term(
+        field => 'swishdocpath',
+        term  => $doc{swishdocpath}
+    );
 
     $self->{ks}->add_doc( \%doc );
 }

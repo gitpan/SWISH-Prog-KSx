@@ -28,3 +28,6 @@ Revision history for SWISH-Prog-KSx
 0.07    01 Feb 2010
     * Searcher can now accept a Swish-e/SQL-like sort order string.
 
+0.08    22 Feb 2010
+    * Indexer will now remove any existing doc with same 
+      swishdocpath before calling add_doc().
