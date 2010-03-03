@@ -20,11 +20,12 @@ WriteMakefile(
         : () ),
     PL_FILES  => {},
     PREREQ_PM => {
-        'Test::More'  => 0,
-        'KinoSearch'  => '0.30_08',    # developed against this version
-        'SWISH::Prog' => 0.32,         # SWISH::3::Config support
-        'SWISH::3'    => 0.04,         # mem leak fixes in >= 0.04
-        'Sort::SQL'   => 0.06,
+        'Test::More'    => 0,
+        'KinoSearch'    => '0.30_08',    # developed against this version
+        'SWISH::Prog'   => 0.32,         # SWISH::3::Config support
+        'SWISH::3'      => 0.04,         # mem leak fixes in >= 0.04
+        'Sort::SQL'     => 0.06,
+        'Search::Query::Dialect::KSx' => 0.01,
     },
     dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'SWISH-Prog-KSx-* t/index.swish' },

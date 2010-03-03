@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
@@ -285,19 +285,22 @@ sub _handler {
         my $attr = $doc_prop_map->{$propname};
         $doc{$propname} = [ $data->doc->$attr ];
     }
-    my $props = $data->properties;
-    my $metas = $data->metanames;
-    for my $fname ( sort keys %{ $self->{_fields} } ) {
+    my $props  = $data->properties;
+    my $metas  = $data->metanames;
+    my $fields = $self->{_fields};
+
+    #dump $fields;
+    for my $fname ( sort keys %$fields ) {
         my $field = $self->{_fields}->{$fname};
 
         my @keys = keys %{ $field->{store_as} };
 
         for my $key (@keys) {
-            if ( $field->{is_prop} ) {
-                push( @{ $doc{$key} }, @{ $props->{$fname} } );
-            }
-            elsif ( $field->{is_meta} ) {
+            if ( $field->{is_meta} ) {
                 push( @{ $doc{$key} }, @{ $metas->{$fname} } );
+            }
+            elsif ( $field->{is_prop} ) {
+                push( @{ $doc{$key} }, @{ $props->{$fname} } );
             }
             else {
                 croak "field '$fname' is neither a PropertyName nor MetaName";

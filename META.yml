@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               SWISH-Prog-KSx
-version:            0.08
+version:            0.09
 abstract:           Swish3 KinoSearch backend
 author:
     - Peter Karman <karman at cpan dot org>
@@ -11,12 +11,13 @@ configure_requires:
 build_requires:
     ExtUtils::MakeMaker:  0
 requires:
-    KinoSearch:   0.30_08
-    perl:         5.008003
-    Sort::SQL:    0.06
-    SWISH::3:     0.04
-    SWISH::Prog:  0.32
-    Test::More:   0
+    KinoSearch:           0.30_08
+    perl:                 5.008003
+    Search::Query::Dialect::KSx:  0.01
+    Sort::SQL:            0.06
+    SWISH::3:             0.04
+    SWISH::Prog:          0.32
+    Test::More:           0
 resources:
     bugtracker:  http://rt.cpan.org/NoAuth/Bugs.html?Dist=SWISH-Prog-KSx
     homepage:    http://dev.swish-e.org/wiki/perl

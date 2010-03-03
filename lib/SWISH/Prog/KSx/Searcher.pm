@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -12,12 +12,13 @@ use SWISH::Prog::KSx::Results;
 use KinoSearch::Searcher;
 use KinoSearch::Search::PolySearcher;
 use KinoSearch::Analysis::PolyAnalyzer;
-use KinoSearch::QueryParser;
 use KinoSearch::Search::RangeQuery;
 use KinoSearch::Search::SortRule;
 use KinoSearch::Search::SortSpec;
 use Data::Dump qw( dump );
 use Sort::SQL;
+use Search::Query;
+use Search::Query::Dialect::KSx;
 
 =head1 NAME
 
@@ -58,29 +59,54 @@ sub init {
     # load meta from the first invindex
     my $invindex = $self->invindex->[0];
     my $config   = $invindex->meta;
-    my $lang     = $config->Index->{ SWISH::3::SWISH_INDEX_STEMMER_LANG() };
 
     my @searchables;
     for my $idx ( @{ $self->invindex } ) {
         my $searcher = KinoSearch::Searcher->new( index => "$idx" );
         push @searchables, $searcher;
     }
-    $self->{ks} = KinoSearch::Search::PolySearcher->new(
-        schema      => $searchables[0]->get_schema,
-        searchables => \@searchables,
-    );
-    $self->{analyzer}
-        = KinoSearch::Analysis::PolyAnalyzer->new( language => $lang, );
-    $self->{qp} = KinoSearch::QueryParser->new(
+    my $schema = $searchables[0]->get_schema;
 
-        # only need to explicitly declare fields if we do not want
-        # all the fields defined in schema.
-        #fields   => [ SWISH::3::SWISH_DOC_FIELDS(), 'swishdefault' ],
-        schema         => $self->{ks}->get_schema,
-        analyzer       => $self->{analyzer},
-        default_boolop => 'AND',                     # like swish-e
+    # API changed after 0.30_082 release.
+    eval {
+        $self->{ks} = KinoSearch::Search::PolySearcher->new(
+            schema    => $schema,
+            searchers => \@searchables,
+        );
+    };
+    if ($@) {
+        $self->{ks} = KinoSearch::Search::PolySearcher->new(
+            schema      => $schema,
+            searchables => \@searchables,
+        );
+    }
+
+    my $field_names = $schema->all_fields();
+    my %fieldtypes;
+    for my $name (@$field_names) {
+        $fieldtypes{$name} = {
+            type     => $schema->fetch_type($name),
+            analyzer => $schema->fetch_analyzer($name)
+        };
+    }
+    $self->{qp} = Search::Query::Parser->new(
+        dialect          => 'KSx',
+        fields           => \%fieldtypes,
+        query_class_opts => {
+            default_field => $field_names,
+            debug         => $self->debug,
+        }
     );
-    $self->{qp}->set_heed_colons(1);
+
+    my $fields    = {};
+    my $metanames = $config->MetaNames;
+    for my $metaname ( keys %$metanames ) {
+        $fields->{$metaname} = {};
+        if ( exists $metanames->{$metaname}->{alias_for} ) {
+            $fields->{$metaname}->{alias_for}
+                = $metanames->{$metaname}->{alias_for};
+        }
+    }
 
     return $self;
 }
@@ -88,6 +114,9 @@ sub init {
 =head2 search( I<query> [, I<opts> ] )
 
 Returns a SWISH::Prog::KSx::Results object.
+
+I<query> is assumed to be query string compatible
+with Search::Query::Dialect::KSx.
 
 I<opts> is an optional hashref with the following supported
 key/values:
@@ -100,7 +129,7 @@ The starting position. Default is 0.
 
 =item max
 
-The ending position. Default is max_hits() as documented 
+The ending position. Default is max_hits() as documented
 in SWISH::Prog::Searcher.
 
 =item order
@@ -130,8 +159,10 @@ sub search {
     my $order  = $opts->{order};
     my $limits = $opts->{limit} || [];
 
+    #warn "query=$query";
+
     my %hits_args = (
-        query      => $self->{qp}->parse("$query"),
+        query      => $self->{qp}->parse($query),
         offset     => $start,
         num_wanted => $max,
     );
@@ -145,8 +176,13 @@ sub search {
             lower_term => $limit->[1],
             upper_term => $limit->[2],
         );
-        $hits_args{query}
-            = $self->{qp}->make_and_query( [ $range, $hits_args{query} ] );
+        $hits_args{query}->add_and_clause(
+            Search::Query::Clause->new(
+                field => $limit->[0],
+                op    => '..',
+                value => [ $limit->[1], $limit->[2] ]
+            )
+        );
     }
 
     #carp dump $hits_args{query}->dump;
@@ -163,7 +199,21 @@ sub search {
             my $sort_array = Sort::SQL->parse($order);
             my @rules;
             for my $pair (@$sort_array) {
-                if ( uc( $pair->[1] ) eq 'DESC' ) {
+                my $type
+                    = $pair->[0] =~ m/^(swish)?rank$/ ? 'score' : 'field';
+
+                if ( $type eq 'score' and uc( $pair->[1] ) eq 'DESC' ) {
+                    push @rules,
+                        KinoSearch::Search::SortRule->new(
+                        type    => $type,
+                        reverse => 1,
+                        );
+                }
+                elsif ( $type eq 'score' ) {
+                    push @rules,
+                        KinoSearch::Search::SortRule->new( type => $type, );
+                }
+                elsif ( uc( $pair->[1] ) eq 'DESC' ) {
                     push @rules,
                         KinoSearch::Search::SortRule->new(
                         field   => $pair->[0],
@@ -180,10 +230,14 @@ sub search {
                 = KinoSearch::Search::SortSpec->new( rules => \@rules, );
         }
     }
+
+    # turn the Search::Query object into a KS object
+    $hits_args{query} = $hits_args{query}->as_ks_query;
     my $hits    = $self->{ks}->hits(%hits_args);
     my $results = SWISH::Prog::KSx::Results->new(
         hits    => $hits->total_hits,
         ks_hits => $hits,
+        query   => $query,
     );
     $results->{_args} = \%hits_args;
     return $results;
@@ -247,4 +301,3 @@ by the Free Software Foundation; or the Artistic License.
 See http://dev.perl.org/licenses/ for more information.
 
 =cut
-
