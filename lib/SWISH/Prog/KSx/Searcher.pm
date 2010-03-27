@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -67,29 +67,27 @@ sub init {
     }
     my $schema = $searchables[0]->get_schema;
 
-    # API changed after 0.30_082 release.
-    eval {
-        $self->{ks} = KinoSearch::Search::PolySearcher->new(
-            schema    => $schema,
-            searchers => \@searchables,
-        );
-    };
-    if ($@) {
-        $self->{ks} = KinoSearch::Search::PolySearcher->new(
-            schema      => $schema,
-            searchables => \@searchables,
-        );
-    }
+    $self->{ks} = KinoSearch::Search::PolySearcher->new(
+        schema    => $schema,
+        searchers => \@searchables,
+    );
 
-    my $field_names = $schema->all_fields();
+    my $metanames   = $config->MetaNames;
+    my $field_names = [ keys %$metanames ];
     my %fieldtypes;
     for my $name (@$field_names) {
         $fieldtypes{$name} = {
             type     => $schema->fetch_type($name),
             analyzer => $schema->fetch_analyzer($name)
         };
+        if ( exists $metanames->{$name}->{alias_for} ) {
+            $fieldtypes{$name}->{alias_for}
+                = $metanames->{$name}->{alias_for};
+        }
     }
-    $self->{qp} = Search::Query::Parser->new(
+
+    # TODO could expose 'qp' as param to new().
+    $self->{qp} ||= Search::Query::Parser->new(
         dialect          => 'KSx',
         fields           => \%fieldtypes,
         query_class_opts => {
@@ -97,16 +95,6 @@ sub init {
             debug         => $self->debug,
         }
     );
-
-    my $fields    = {};
-    my $metanames = $config->MetaNames;
-    for my $metaname ( keys %$metanames ) {
-        $fields->{$metaname} = {};
-        if ( exists $metanames->{$metaname}->{alias_for} ) {
-            $fields->{$metaname}->{alias_for}
-                = $metanames->{$metaname}->{alias_for};
-        }
-    }
 
     return $self;
 }
