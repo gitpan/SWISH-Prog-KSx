@@ -7,7 +7,7 @@
   <timestamp />
  </PropertyNames>
  <MetaNames>
-  <date />
+  <date bias="10" />
   <timestamp />
   <foobar /><!-- NO alias bar -->
   <time alias_for="timestamp" />

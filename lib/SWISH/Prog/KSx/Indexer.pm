@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
@@ -107,9 +107,11 @@ sub init {
 
     my $metanames = $config->get_metanames;
     for my $name ( @{ $metanames->keys } ) {
-        my $alias = $metanames->get($name)->alias_for;
+        my $mn = $metanames->get($name);
+        my $alias = $mn->alias_for;
         $fields{$name}->{is_meta}       = 1;
         $fields{$name}->{is_meta_alias} = $alias;
+        $fields{$name}->{bias} = $mn->bias;
     }
 
     my $properties = $config->get_properties;
@@ -125,38 +127,6 @@ sub init {
 
     $self->{_fields} = \%fields;
 
-    # versions > 0.30072 allow for sortable fulltexttype
-    # but svn trunk is version 0.3007 so we can't just test $VERSION
-    my ( $meta_and_prop_sortable, $meta_and_prop_nosortable );
-
-    eval {
-        $meta_and_prop_sortable = KinoSearch::FieldType::FullTextType->new(
-            analyzer      => $analyzer,
-            highlightable => 1,
-            sortable      => 1,
-        );
-        $meta_and_prop_nosortable = KinoSearch::FieldType::FullTextType->new(
-            analyzer      => $analyzer,
-            highlightable => 1,
-            sortable      => 0,
-        );
-    };
-
-    if ( !$meta_and_prop_sortable ) {
-        $meta_and_prop_sortable = KinoSearch::FieldType::FullTextType->new(
-            analyzer      => $analyzer,
-            highlightable => 1,
-        );
-        $meta_and_prop_nosortable = KinoSearch::FieldType::FullTextType->new(
-            analyzer      => $analyzer,
-            highlightable => 1,
-        );
-    }
-
-    my $metaname_only = KinoSearch::FieldType::FullTextType->new(
-        analyzer => $analyzer,
-        stored   => 0,
-    );
     my $property_only
         = KinoSearch::FieldType::StringType->new( sortable => 1, );
     my $store_no_sort = KinoSearch::FieldType::StringType->new(
@@ -185,7 +155,11 @@ sub init {
             }
             $schema->spec_field(
                 name => $name,
-                type => $metaname_only
+                type => KinoSearch::FieldType::FullTextType->new(
+                    analyzer => $analyzer,
+                    stored   => 0,
+                    boost    => $field->{bias} || 1.0,
+                ),
             );
         }
 
@@ -205,9 +179,12 @@ sub init {
             }
             $schema->spec_field(
                 name => $name,
-                type => $field->{sortable}
-                ? $meta_and_prop_sortable
-                : $meta_and_prop_nosortable,
+                type => KinoSearch::FieldType::FullTextType->new(
+                    analyzer      => $analyzer,
+                    highlightable => 1,
+                    sortable      => $field->{sortable},
+                    boost         => $field->{bias} || 1.0,
+                ),
             );
         }
         elsif (!$field->{is_meta}

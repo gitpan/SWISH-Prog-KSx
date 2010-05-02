@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -12,7 +12,6 @@ use SWISH::Prog::KSx::Results;
 use KinoSearch::Searcher;
 use KinoSearch::Search::PolySearcher;
 use KinoSearch::Analysis::PolyAnalyzer;
-use KinoSearch::Search::RangeQuery;
 use KinoSearch::Search::SortRule;
 use KinoSearch::Search::SortSpec;
 use Data::Dump qw( dump );
@@ -149,8 +148,9 @@ sub search {
 
     #warn "query=$query";
 
+    my $parsed_query = $self->{qp}->parse($query)
+        or croak "Query syntax error: " . $self->{qp}->error;
     my %hits_args = (
-        query      => $self->{qp}->parse($query),
         offset     => $start,
         num_wanted => $max,
     );
@@ -159,12 +159,7 @@ sub search {
         if ( !ref $limit or ref($limit) ne 'ARRAY' or @$limit != 3 ) {
             croak "poorly-formed limit. should be an array ref of 3 values.";
         }
-        my $range = KinoSearch::Search::RangeQuery->new(
-            field      => $limit->[0],
-            lower_term => $limit->[1],
-            upper_term => $limit->[2],
-        );
-        $hits_args{query}->add_and_clause(
+        $parsed_query->add_and_clause(
             Search::Query::Clause->new(
                 field => $limit->[0],
                 op    => '..',
@@ -220,12 +215,12 @@ sub search {
     }
 
     # turn the Search::Query object into a KS object
-    $hits_args{query} = $hits_args{query}->as_ks_query;
+    $hits_args{query} = $parsed_query->as_ks_query;
     my $hits    = $self->{ks}->hits(%hits_args);
     my $results = SWISH::Prog::KSx::Results->new(
         hits    => $hits->total_hits,
         ks_hits => $hits,
-        query   => $query,
+        query   => $parsed_query,
     );
     $results->{_args} = \%hits_args;
     return $results;
