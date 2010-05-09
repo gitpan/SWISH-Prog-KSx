@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               SWISH-Prog-KSx
-version:            0.11
+version:            0.12
 abstract:           Swish3 KinoSearch backend
 author:
     - Peter Karman <karman at cpan dot org>
@@ -15,7 +15,7 @@ requires:
     perl:                 5.008003
     Search::Query::Dialect::KSx:  0.09
     Sort::SQL:            0.06
-    SWISH::3:             0.04
+    SWISH::3:             0.06
     SWISH::Prog:          0.44
     Test::More:           0
 resources:

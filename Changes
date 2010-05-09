@@ -46,3 +46,7 @@ Revision history for SWISH-Prog-KSx
     * add support for MetaNamesRank
     * bump deps for KS and Search::Query::Dialect::KSx
 
+0.12    08 May 2010
+    * always sort by score so that a score is calculated and doc_id
+      so that paging works consistently.
+

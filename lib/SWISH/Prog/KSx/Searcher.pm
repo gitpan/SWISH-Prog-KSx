@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -178,6 +178,9 @@ sub search {
         }
         else {
 
+            my $has_sort_by_score  = 0;
+            my $has_sort_by_doc_id = 0;
+
             # turn it into a SortSpec
             my $sort_array = Sort::SQL->parse($order);
             my @rules;
@@ -185,30 +188,55 @@ sub search {
                 my $type
                     = $pair->[0] =~ m/^(swish)?rank$/ ? 'score' : 'field';
 
-                if ( $type eq 'score' and uc( $pair->[1] ) eq 'DESC' ) {
-                    push @rules,
-                        KinoSearch::Search::SortRule->new(
-                        type    => $type,
-                        reverse => 1,
-                        );
-                }
-                elsif ( $type eq 'score' ) {
-                    push @rules,
-                        KinoSearch::Search::SortRule->new( type => $type, );
-                }
-                elsif ( uc( $pair->[1] ) eq 'DESC' ) {
-                    push @rules,
-                        KinoSearch::Search::SortRule->new(
-                        field   => $pair->[0],
-                        reverse => 1,
-                        );
+                if ( $type eq 'score' ) {
+
+                    $has_sort_by_score++;
+
+                    if ( uc( $pair->[1] ) eq 'DESC' ) {
+                        push @rules,
+                            KinoSearch::Search::SortRule->new(
+                            type => $type );
+                    }
+                    else {
+                        push @rules,
+                            KinoSearch::Search::SortRule->new(
+                            type    => $type,
+                            reverse => 1
+                            );
+                    }
                 }
                 else {
-                    push @rules,
-                        KinoSearch::Search::SortRule->new(
-                        field => $pair->[0], );
+                    if ( $pair->[0] eq 'doc_id' ) {
+                        $has_sort_by_doc_id++;
+                    }
+                    if ( uc( $pair->[1] ) eq 'DESC' ) {
+                        push @rules,
+                            KinoSearch::Search::SortRule->new(
+                            field   => $pair->[0],
+                            reverse => 1,
+                            );
+                    }
+                    else {
+                        push @rules,
+                            KinoSearch::Search::SortRule->new(
+                            field => $pair->[0], );
+                    }
                 }
             }
+
+            # always include a sort by score so that we calculate a score.
+            if ( !$has_sort_by_score ) {
+                push @rules,
+                    KinoSearch::Search::SortRule->new( type => 'score' );
+            }
+
+            # always have doc_id last
+            # http://rectangular.com/pipermail/kinosearch/2010-May/007392.html
+            if ( !$has_sort_by_doc_id ) {
+                push @rules,
+                    KinoSearch::Search::SortRule->new( type => 'doc_id' );
+            }
+
             $hits_args{sort_spec}
                 = KinoSearch::Search::SortSpec->new( rules => \@rules, );
         }

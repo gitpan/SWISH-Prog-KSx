@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::InvIndex;
 use strict;
 use warnings;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 use base qw( SWISH::Prog::InvIndex );
 

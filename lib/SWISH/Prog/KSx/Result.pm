@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Result;
 use strict;
 use warnings;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 use base qw( SWISH::Prog::Result );
 use SWISH::3 ':constants';

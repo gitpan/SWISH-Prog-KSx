@@ -23,7 +23,7 @@ WriteMakefile(
         'Test::More'    => 0,
         'KinoSearch'    => '0.30_101',    
         'SWISH::Prog'   => 0.44,         
-        'SWISH::3'      => 0.04,         # mem leak fixes in >= 0.04
+        'SWISH::3'      => 0.06,         # mem leak fixes in >= 0.04
         'Sort::SQL'     => 0.06,
         'Search::Query::Dialect::KSx' => 0.09,
     },
