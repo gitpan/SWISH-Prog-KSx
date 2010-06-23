@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Test::More tests => 29;
+use Test::More tests => 32;
 use strict;
 use Data::Dump qw( dump );
 
@@ -99,8 +99,20 @@ ok( my $results7 = $searcher->search(qq/(som* or word*) and here/),
 is( $results7->hits, 2, "2 hits for compound wildcard query" );
 
 # break the query parser
-eval { my $results7 = $searcher->search(qq/"out touch~2/); };
+eval { $results7 = $searcher->search(qq/"out touch~2/); };
 ok( $@, "query parser catches poor syntax" );
+
+# boolop
+ok( my $results_OR
+        = $searcher->search( qq/some words/, { default_boolop => 'OR' } ),
+    "search with boolop=OR"
+);
+ok( my $results_AND
+        = $searcher->search( qq/some words/, { default_boolop => 'AND' } ),
+    "search with boolop=AND"
+);
+cmp_ok( $results_OR->hits, '>', $results_AND->hits,
+    "OR gives more hits than AND" );
 
 END {
     unless ( $ENV{PERL_DEBUG} ) {

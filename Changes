@@ -50,3 +50,6 @@ Revision history for SWISH-Prog-KSx
     * always sort by score so that a score is calculated and doc_id
       so that paging works consistently.
 
+0.13    22 June 2010
+    * add default_boolop to Searcher.
+

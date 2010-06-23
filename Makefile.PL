@@ -25,7 +25,8 @@ WriteMakefile(
         'SWISH::Prog'   => 0.44,         
         'SWISH::3'      => 0.06,         # mem leak fixes in >= 0.04
         'Sort::SQL'     => 0.06,
-        'Search::Query::Dialect::KSx' => 0.09,
+        'Search::Query' => 0.17,
+        'Search::Query::Dialect::KSx' => 0.12,
     },
     dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'SWISH-Prog-KSx-* t/index.swish' },

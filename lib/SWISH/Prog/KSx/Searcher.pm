@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -131,9 +131,21 @@ Takes an arrayref of arrayrefs. Each child arrayref should
 have three values: a field (PropertyName) value, a lower limit
 and an upper limit.
 
+=item default_boolop
+
+The default boolean connector for parsing I<query>. Valid values
+are B<AND> and B<OR>. The default is
+B<AND> (which is different than KinoSearch::QueryParser, but the
+same as Swish-e).
+
 =back
 
 =cut
+
+my %boolops = (
+    'AND' => '+',
+    'OR'  => '',
+);
 
 sub search {
     my $self  = shift;
@@ -141,10 +153,15 @@ sub search {
     croak "query required" unless defined $query;
     my $opts = shift || {};
 
-    my $start  = $opts->{start} || 0;
-    my $max    = $opts->{max}   || $self->max_hits;
+    my $start  = $opts->{start}          || 0;
+    my $max    = $opts->{max}            || $self->max_hits;
     my $order  = $opts->{order};
-    my $limits = $opts->{limit} || [];
+    my $limits = $opts->{limit}          || [];
+    my $boolop = $opts->{default_boolop} || 'AND';
+    if ( !exists $boolops{ uc($boolop) } ) {
+        croak "Unsupported default_boolop: $boolop (should be AND or OR)";
+    }
+    $self->{qp}->default_boolop( $boolops{$boolop} );
 
     #warn "query=$query";
 
