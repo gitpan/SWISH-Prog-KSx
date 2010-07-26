@@ -2,12 +2,12 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 use base qw( SWISH::Prog::Searcher );
 
 use Carp;
-use SWISH::3;
+use SWISH::3 qw( :constants );
 use SWISH::Prog::KSx::Results;
 use KinoSearch::Searcher;
 use KinoSearch::Search::PolySearcher;
@@ -85,6 +85,21 @@ sub init {
         }
     }
 
+    my $props = $config->PropertyNames;
+
+    # start with the built-in PropertyNames,
+    # which cannot be aliases for anything.
+    my %propnames = map { $_ => { alias_for => undef } }
+        keys %{ SWISH_DOC_PROP_MAP() };
+    $propnames{swishrank} = { alias_for => undef };
+    for my $name ( keys %$props ) {
+        $propnames{$name} = { alias_for => undef };
+        if ( exists $props->{$name}->{alias_for} ) {
+            $propnames{$name}->{alias_for} = $props->{$name}->{alias_for};
+        }
+    }
+    $self->{_propnames} = \%propnames;
+
     # TODO could expose 'qp' as param to new().
     $self->{qp} ||= Search::Query::Parser->new(
         dialect          => 'KSx',
@@ -96,6 +111,17 @@ sub init {
     );
 
     return $self;
+}
+
+sub _get_field_alias_for {
+    my ( $self, $field ) = @_;
+    if ( !exists $self->{_propnames}->{$field} ) {
+        croak "unknown field name: $field";
+    }
+    if ( defined $self->{_propnames}->{$field}->{alias_for} ) {
+        return $self->{_propnames}->{$field}->{alias_for};
+    }
+    return undef;
 }
 
 =head2 search( I<query> [, I<opts> ] )
@@ -202,14 +228,17 @@ sub search {
             my $sort_array = Sort::SQL->parse($order);
             my @rules;
             for my $pair (@$sort_array) {
-                my $type
-                    = $pair->[0] =~ m/^(swish)?rank$/ ? 'score' : 'field';
+                my ( $field, $dir ) = @$pair;
+                if ( $self->_get_field_alias_for($field) ) {
+                    $field = $self->_get_field_alias_for($field);
+                }
+                my $type = $field =~ m/^(swish)?rank$/ ? 'score' : 'field';
 
                 if ( $type eq 'score' ) {
 
                     $has_sort_by_score++;
 
-                    if ( uc( $pair->[1] ) eq 'DESC' ) {
+                    if ( uc($dir) eq 'DESC' ) {
                         push @rules,
                             KinoSearch::Search::SortRule->new(
                             type => $type );
@@ -223,20 +252,20 @@ sub search {
                     }
                 }
                 else {
-                    if ( $pair->[0] eq 'doc_id' ) {
+                    if ( $field eq 'doc_id' ) {
                         $has_sort_by_doc_id++;
                     }
-                    if ( uc( $pair->[1] ) eq 'DESC' ) {
+                    if ( uc($dir) eq 'DESC' ) {
                         push @rules,
                             KinoSearch::Search::SortRule->new(
-                            field   => $pair->[0],
+                            field   => $field,
                             reverse => 1,
                             );
                     }
                     else {
                         push @rules,
                             KinoSearch::Search::SortRule->new(
-                            field => $pair->[0], );
+                            field => $field, );
                     }
                 }
             }

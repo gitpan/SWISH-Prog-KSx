@@ -53,3 +53,13 @@ Revision history for SWISH-Prog-KSx
 0.13    22 June 2010
     * add default_boolop to Searcher.
 
+0.14    25 July 2010
+    * fix bug where Doc values were not being flagged as UTF-8 in
+      Indexer.
+    * fix bug where built-in PropertyNames were not being allowed
+      to be both MetaNames and PropertyNames
+    * add ability to sort by PropertyNameAlias values, like native
+      Swish-e 2.x can.
+    * switch field indexing order to prefer PropertyNames over
+      MetaNames because of how whitespace is stored (or not).
+

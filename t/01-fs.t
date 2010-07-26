@@ -1,9 +1,13 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Test::More tests => 32;
+use Test::More tests => 34;
 use strict;
 use Data::Dump qw( dump );
+use Search::Tools::UTF8;
+
+#binmode Test::More->builder->output,         ":utf8";
+#binmode Test::More->builder->failure_output, ":utf8";
 
 use_ok('SWISH::Prog');
 use_ok('SWISH::Prog::KSx::InvIndex');
@@ -63,11 +67,28 @@ ok( my $results2 = $searcher->search(
     "search()"
 );
 is( $results2->hits, 1, "1 hit" );
+
+my $utf8_title = sprintf( "%c%s%c", 8220, qq/ima xml doc/, 8221 );
+
+#Search::Tools::describe($utf8_title);
+#diag($utf8_title);
+
 while ( my $result2 = $results2->next ) {
-    diag( $result2->uri );
-    is( $result2->uri,   't/test.xml',  'get uri' );
-    is( $result2->title, "ima xml doc", "get title" );
-    diag( $result2->score );
+    my $title = sprintf( "%s %s", $result2->title, "AND MORE" );
+
+    #print STDERR $title . "\n";
+    if ( !is_flagged_utf8($title) ) {
+        warn("not flagged utf8");
+    }
+
+    #Search::Tools::describe($title);
+    #diag( $result2->uri );
+    #diag( $result2->title );
+    #diag( $result2->score );
+    #diag($title);
+    is( $result2->uri,   't/test.xml', 'get uri' );
+    is( $result2->title, $utf8_title,  "get title" );
+
 }
 
 # test sort
@@ -113,6 +134,24 @@ ok( my $results_AND
 );
 cmp_ok( $results_OR->hits, '>', $results_AND->hits,
     "OR gives more hits than AND" );
+
+# properties/aliases
+ok( my $sorted_by_title = $searcher->search( qq/some/, { order => 'title' } ),
+    "search sorted by title"
+);
+show_results_by_uri($sorted_by_title);
+ok( my $sorted_by_lastmod
+        = $searcher->search( qq/some/, { order => 'lastmod' } ),
+    "search sorted by lastmod"
+);
+show_results_by_uri($sorted_by_lastmod);
+
+sub show_results_by_uri {
+    my ($results) = @_;
+    while ( my $r = $results->next ) {
+        diag( $r->uri );
+    }
+}
 
 END {
     unless ( $ENV{PERL_DEBUG} ) {
