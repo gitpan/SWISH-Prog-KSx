@@ -14,6 +14,7 @@ ok( my $invindex = SWISH::Prog::KSx::InvIndex->new(
 );
 
 my $passes = 0;
+my $searcher;
 while ( ++$passes < 4 ) {
 
     ok( my $program = SWISH::Prog->new(
@@ -37,11 +38,16 @@ while ( ++$passes < 4 ) {
 
     is( $program->count, 2, "indexed test docs" );
 
-    ok( my $searcher
-            = SWISH::Prog::KSx::Searcher->new( invindex => 't/index.swish', ),
-        "new searcher"
-    );
-
+    if ( !$searcher ) {
+        ok( $searcher = SWISH::Prog::KSx::Searcher->new(
+                invindex => 't/index.swish',
+            ),
+            "new searcher"
+        );
+    }
+    else {
+        pass("searcher already defined");
+    }
     ok( my $results = $searcher->search('test'), "search()" );
 
     #diag( dump $results );

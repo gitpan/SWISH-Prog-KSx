@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -14,6 +14,7 @@ use KinoSearch::Search::PolySearcher;
 use KinoSearch::Analysis::PolyAnalyzer;
 use KinoSearch::Search::SortRule;
 use KinoSearch::Search::SortSpec;
+use Path::Class::File::Stat;
 use Data::Dump qw( dump );
 use Sort::SQL;
 use Search::Query;
@@ -59,17 +60,17 @@ sub init {
     my $invindex = $self->invindex->[0];
     my $config   = $invindex->meta;
 
-    my @searchables;
-    for my $idx ( @{ $self->invindex } ) {
-        my $searcher = KinoSearch::Searcher->new( index => "$idx" );
-        push @searchables, $searcher;
-    }
-    my $schema = $searchables[0]->get_schema;
+    # cache the meta file stat(), to test if it changes
+    # while the searcher is open. See get_ks()
+    $self->{swish_xml}
+        = Path::Class::File::Stat->new( $invindex->meta->file );
+    $self->{swish_xml}->use_md5();    # slower but better
+    $self->{_uuid} = $config->Index->{UUID} || "KS_NO_UUID";
 
-    $self->{ks} = KinoSearch::Search::PolySearcher->new(
-        schema    => $schema,
-        searchers => \@searchables,
-    );
+    # this does 2 things:
+    # 1: initializes the KS Searcher
+    # 2: gives a copy of the KS Schema object for field defs
+    my $schema = $self->get_ks()->get_schema();
 
     my $metanames   = $config->MetaNames;
     my $field_names = [ keys %$metanames ];
@@ -92,6 +93,7 @@ sub init {
     my %propnames = map { $_ => { alias_for => undef } }
         keys %{ SWISH_DOC_PROP_MAP() };
     $propnames{swishrank} = { alias_for => undef };
+    $propnames{score}     = { alias_for => undef };
     for my $name ( keys %$props ) {
         $propnames{$name} = { alias_for => undef };
         if ( exists $props->{$name}->{alias_for} ) {
@@ -232,7 +234,13 @@ sub search {
                 if ( $self->_get_field_alias_for($field) ) {
                     $field = $self->_get_field_alias_for($field);
                 }
-                my $type = $field =~ m/^(swish)?rank$/ ? 'score' : 'field';
+                my $type;
+                if ( $field eq 'score' or $field =~ m/^(swish)?rank$/ ) {
+                    $type = 'score';
+                }
+                else {
+                    $type = 'field';
+                }
 
                 if ( $type eq 'score' ) {
 
@@ -290,7 +298,10 @@ sub search {
 
     # turn the Search::Query object into a KS object
     $hits_args{query} = $parsed_query->as_ks_query;
-    my $hits    = $self->{ks}->hits(%hits_args);
+    my $ks = $self->get_ks();
+    $self->debug
+        and carp "search in $ks for '$parsed_query' : " . dump( \%hits_args );
+    my $hits    = $ks->hits(%hits_args);
     my $results = SWISH::Prog::KSx::Results->new(
         hits    => $hits->total_hits,
         ks_hits => $hits,
@@ -298,6 +309,63 @@ sub search {
     );
     $results->{_args} = \%hits_args;
     return $results;
+}
+
+=head2 get_ks
+
+Returns the internal KinoSearch::Search::PolySearcher object.
+
+=cut
+
+sub get_ks {
+    my $self = shift;
+    my $uuid = $self->invindex->[0]->meta->Index->{UUID};
+    if ( !$self->{ks} ) {
+
+        $self->debug and carp "init ks";
+        $self->_open_ks;
+
+    }
+    elsif ( $self->{_uuid} && $self->{_uuid} ne $uuid ) {
+
+        $self->debug and carp "UUID has changed from $self->{_uuid} to $uuid";
+        $self->_open_ks;
+
+        # recache
+        $self->{_uuid} = $self->invindex->[0]->meta->Index->{UUID};
+
+    }
+    elsif ( $self->{swish_xml}->changed ) {
+
+        $self->debug and carp "MD5 sig has changed";
+        $self->_open_ks;
+
+    }
+    else {
+
+        $self->debug and carp "re-using cached KS Searcher";
+
+    }
+    return $self->{ks};
+}
+
+sub _open_ks {
+    my $self = shift;
+    my @searchers;
+    for my $idx ( @{ $self->invindex } ) {
+        my $searcher = KinoSearch::Searcher->new( index => "$idx" );
+        push @searchers, $searcher;
+    }
+
+    # assume all the schemas are identical.
+    my $schema = $searchers[0]->get_schema();
+
+    $self->{ks} = KinoSearch::Search::PolySearcher->new(
+        schema    => $schema,
+        searchers => \@searchers,
+    );
+
+    $self->debug and carp "opened new PolySearcher: " . $self->{ks};
 }
 
 1;

@@ -20,22 +20,7 @@ ok( my $invindex = SWISH::Prog::KSx::InvIndex->new(
     "new invindex"
 );
 
-ok( my $program = SWISH::Prog->new(
-        invindex   => $invindex,
-        aggregator => 'fs',
-        indexer    => 'ks',
-        config     => 't/config.xml',
-
-        #verbose    => 1,
-        #debug      => 1,
-    ),
-    "new program"
-);
-
-# skip the index dir every time
-# the '1' arg indicates to append the value, not replace.
-$program->config->FileRules( 'dirname is index.swish', 1 );
-$program->config->FileRules( 'filename is config.xml', 1 );
+my $program = make_program();
 
 ok( $program->index('t/'), "run program" );
 
@@ -145,6 +130,27 @@ ok( my $sorted_by_lastmod
     "search sorted by lastmod"
 );
 show_results_by_uri($sorted_by_lastmod);
+
+sub make_program {
+    ok( my $program = SWISH::Prog->new(
+            invindex   => $invindex,
+            aggregator => 'fs',
+            indexer    => 'ks',
+            config     => 't/config.xml',
+
+            #verbose    => 1,
+            #debug      => 1,
+        ),
+        "new program"
+    );
+
+    # skip the index dir every time
+    # the '1' arg indicates to append the value, not replace.
+    $program->config->FileRules( 'dirname is index.swish', 1 );
+    $program->config->FileRules( 'filename is config.xml', 1 );
+
+    return $program;
+}
 
 sub show_results_by_uri {
     my ($results) = @_;

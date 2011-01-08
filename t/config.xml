@@ -18,4 +18,5 @@
  <TagAlias>
   <swishdescription>foo</swishdescription>
  </TagAlias>
+ <UndefinedMetaTags>auto</UndefinedMetaTags>
 </swish>

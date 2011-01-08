@@ -2,13 +2,13 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
 
-use KinoSearch::Indexer;
-use KinoSearch::Schema;
+use KinoSearch::Index::Indexer;
+use KinoSearch::Plan::Schema;
 use KinoSearch::Analysis::PolyAnalyzer;
 use KinoSearch::FieldType::FullTextType;
 use KinoSearch::FieldType::StringType;
@@ -18,6 +18,7 @@ use SWISH::3 qw( :constants );
 use Scalar::Util qw( blessed );
 use Data::Dump qw( dump );
 use Search::Tools::UTF8;
+use Path::Class::File::Lockable;
 
 =head1 NAME
 
@@ -251,13 +252,64 @@ sub init {
     #dump( \%fields );
 
     # TODO can pass ks in?
-    $self->{ks} ||= KinoSearch::Indexer->new(
+    $self->{ks} ||= KinoSearch::Index::Indexer->new(
         schema => $schema,
         index  => $self->invindex->path,
         create => 1,
     );
 
+    # cache our objects in case we later
+    # need to create any fields on-the-fly
+    $self->{__ks}->{analyzer} = $analyzer;
+    $self->{__ks}->{schema}   = $schema;
+
     return $self;
+}
+
+sub _add_new_field {
+    my ( $self, $metaname ) = @_;
+    my $fields = $self->{_fields};
+    my $alias  = $metaname->alias_for;
+    my $name   = $metaname->name;
+    if ( !exists $fields->{$name} ) {
+        $fields->{$name} = {};
+    }
+    my $field = $fields->{$name};
+    $field->{is_meta}           = 1;
+    $field->{is_meta_alias}     = $alias;
+    $field->{bias}              = $metaname->bias;
+    $field->{store_as}->{$name} = 1;
+
+    # a newly defined MetaName matching an already-defined PropertyName
+    if ( $field->{is_prop} ) {
+        $self->{__ks}->{schema}->spec_field(
+            name => $name,
+            type => KinoSearch::FieldType::FullTextType->new(
+                analyzer      => $self->{__ks}->{analyzer},
+                highlightable => 1,
+                sortable      => $field->{sortable},
+                boost         => $field->{bias} || 1.0,
+            ),
+        );
+    }
+
+    # just a new MetaName
+    else {
+
+        $self->{__ks}->{schema}->spec_field(
+            name => $name,
+            type => KinoSearch::FieldType::FullTextType->new(
+                analyzer => $self->{__ks}->{analyzer},
+                stored   => 0,
+                boost    => $field->{bias} || 1.0,
+            ),
+        );
+
+    }
+
+    #warn "Added new field $name: " . dump( $field );
+
+    return $field;
 }
 
 =head2 process( I<doc> )
@@ -274,20 +326,39 @@ sub process {
     return $doc;
 }
 
+my $doc_prop_map = SWISH_DOC_PROP_MAP();
+
 sub _handler {
     my ( $self, $data ) = @_;
     my $config     = $data->config;
     my $conf_props = $config->get_properties;
     my $conf_metas = $config->get_metanames;
+
+    # will hold all the parsed text, keyed by field name
     my %doc;
-    my $doc_prop_map = SWISH_DOC_PROP_MAP();
+
+    # Swish built-in fields first
     for my $propname ( keys %$doc_prop_map ) {
         my $attr = $doc_prop_map->{$propname};
         $doc{$propname} = [ $data->doc->$attr ];
     }
-    my $props  = $data->properties;
-    my $metas  = $data->metanames;
+
+    # fields parsed from document
+    my $props = $data->properties;
+    my $metas = $data->metanames;
+
+    # field def cache
     my $fields = $self->{_fields};
+
+    # may need to add newly-discovered fields from $metas
+    # that were added via UndefinedMetaTags e.g.
+    for my $mname ( keys %$metas ) {
+        if ( !exists $fields->{$mname} ) {
+
+            #warn "New field: $mname\n";
+            $self->_add_new_field( $conf_metas->get($mname) );
+        }
+    }
 
     #dump $fields;
     #dump $props;
@@ -300,11 +371,11 @@ sub _handler {
         my @keys = keys %{ $field->{store_as} };
 
         for my $key (@keys) {
-        
+
             # prefer properties over metanames because
             # properties have verbatim flag, which affects
             # the stored whitespace.
-        
+
             if ( $field->{is_prop} and !exists $doc_prop_map->{$fname} ) {
                 push( @{ $doc{$key} }, @{ $props->{$fname} } );
             }
@@ -322,7 +393,7 @@ sub _handler {
         $doc{$k} = to_utf8( join( "\003", @{ $doc{$k} } ) );
     }
 
-    #warn dump \%doc;
+    $self->debug and carp dump \%doc;
 
     # make sure we delete any existing doc with same URI
     $self->{ks}->delete_by_term(
@@ -341,29 +412,72 @@ method.
 
 =cut
 
+my @chars = ( 'a' .. 'z', 'A' .. 'Z', 0 .. 9 );
+
 sub finish {
     my $self = shift;
 
     return 0 if $self->{_is_finished};
 
+    # get a lock on our header file till
+    # this entire transaction is complete.
+    # Note that we trust the KS locking feature
+    # to have prevented any other process
+    # from getting a lock on the invindex itself,
+    # but we want to make sure nothing interrupts
+    # us from writing our own header after calling ->commit().
+    my $invindex  = $self->invindex->path;
+    my $header    = $invindex->file( SWISH_HEADER_FILE() )->stringify;
+    my $lock_file = Path::Class::File::Lockable->new($header);
+    if ( $lock_file->locked ) {
+        croak "Lock file found on $header -- cannot commit indexing changes";
+    }
+    $lock_file->lock;
+
     # commit our changes
     $self->{ks}->commit();
+
+    # get total doc count
+    my $polyreader
+        = KinoSearch::Index::PolyReader->open( index => "$invindex", );
+    my $doc_count = $polyreader->doc_count();
 
     # write header
     my $index = $self->{s3}->config->get_index;
 
-    $index->set( SWISH_INDEX_NAME(),         $self->invindex->path );
+    # poor man's uuid
+    my $uuid = join( "", @chars[ map { rand @chars } ( 1 .. 24 ) ] );
+
+    $index->set( SWISH_INDEX_NAME(),         "$invindex" );
     $index->set( SWISH_INDEX_FORMAT(),       'KSx' );
     $index->set( SWISH_INDEX_STEMMER_LANG(), $self->{_lang} );
+    $index->set( "DocCount",                 $doc_count );
+    $index->set( "UUID",                     $uuid );
 
-    $self->{s3}->config->write(
-        $self->invindex->path->file( SWISH_HEADER_FILE() )->stringify );
+    $self->{s3}->config->write($header);
+
+    # transaction complete
+    $lock_file->unlock;
+
+    $self->debug and carp "wrote $header with $uuid";
 
     $self->{s3} = undef;    # invalidate this indexer
 
     $self->SUPER::finish(@_);
 
     $self->{_is_finished} = 1;
+
+    return $doc_count;
+}
+
+=head2 get_ks
+
+Returns the internal KinoSearch::Index::Indexer object.
+
+=cut
+
+sub get_ks {
+    return shift->{ks};
 }
 
 1;

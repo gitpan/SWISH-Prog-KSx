@@ -69,3 +69,12 @@ Revision history for SWISH-Prog-KSx
 
 0.16    28 Oct 2010
     * forgot to actually bump KS dependency
+
+0.17    07 Jan 2011
+    * add Path::Class::File::Lockable dependency, to lock
+      the invindex during KS->commit and write of the swish.xml header.
+    * add Path::Class::File::Stat to automatically re-open 
+      the internal KS searcher inside a S::P::KSx::Searcher 
+      if the invindex has been modified while the searcher was open.
+    * add support for UndefinedMetaTags and UndefinedXMLAttributes
+
