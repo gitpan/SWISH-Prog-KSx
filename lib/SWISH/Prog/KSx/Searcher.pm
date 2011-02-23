@@ -2,7 +2,7 @@ package SWISH::Prog::KSx::Searcher;
 use strict;
 use warnings;
 
-our $VERSION = '0.17';
+our $VERSION = '0.18';
 
 use base qw( SWISH::Prog::Searcher );
 
@@ -319,7 +319,7 @@ Returns the internal KinoSearch::Search::PolySearcher object.
 
 sub get_ks {
     my $self = shift;
-    my $uuid = $self->invindex->[0]->meta->Index->{UUID};
+    my $uuid = $self->invindex->[0]->meta->Index->{UUID} || $self->{_uuid};
     if ( !$self->{ks} ) {
 
         $self->debug and carp "init ks";

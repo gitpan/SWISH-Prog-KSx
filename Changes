@@ -78,3 +78,6 @@ Revision history for SWISH-Prog-KSx
       if the invindex has been modified while the searcher was open.
     * add support for UndefinedMetaTags and UndefinedXMLAttributes
 
+0.18    22 Feb 2011
+    * bump dep for Path::Class::File::Stat to 0.03
+    * fix uninit warning for UUID when no UUID is defined in the swish.xml file

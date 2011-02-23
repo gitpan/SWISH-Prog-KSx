@@ -20,25 +20,22 @@ WriteMakefile(
         : () ),
     PL_FILES  => {},
     PREREQ_PM => {
-        'Test::More'    => 0,
-        'KinoSearch'    => '0.31',    
-        'SWISH::Prog'   => 0.49,
-        'SWISH::3'      => 0.11, 
-        'Sort::SQL'     => 0.06,
-        'Search::Query' => 0.17,
+        'Test::More'                  => 0,
+        'KinoSearch'                  => '0.31',
+        'SWISH::Prog'                 => 0.49,
+        'SWISH::3'                    => 0.11,
+        'Sort::SQL'                   => 0.06,
+        'Search::Query'               => 0.17,
         'Search::Query::Dialect::KSx' => 0.12,
         'Path::Class::File::Lockable' => 0,
-        'Path::Class::File::Stat' => 0,
+        'Path::Class::File::Stat'     => 0.03,
     },
     dist => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'SWISH-Prog-KSx-* t/index.swish' },
     ( $MM_Version >= 6.48 ? ( MIN_PERL_VERSION => '5.8.3' ) : () ),
     ( $MM_Version >= 6.31 ? ( LICENSE          => 'perl' )  : () ),
     (   $MM_Version <= 6.44 ? ()
-        :
-
-            (
-            META_MERGE => {
+        : ( META_MERGE => {
                 resources => {
                     license  => 'http://dev.perl.org/licenses/',
                     homepage => 'http://dev.swish-e.org/wiki/perl',
@@ -48,6 +45,6 @@ WriteMakefile(
                         'http://svn.swish-e.org/perl/SWISH-Prog-KSx/',
                 },
             }
-            )
+        )
     ),
 );
