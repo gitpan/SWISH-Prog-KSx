@@ -17,6 +17,7 @@ my $passes = 0;
 my $searcher;
 while ( ++$passes < 4 ) {
 
+    diag("pass $passes");
     ok( my $program = SWISH::Prog->new(
             invindex   => $invindex,
             aggregator => 'fs',

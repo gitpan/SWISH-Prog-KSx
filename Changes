@@ -81,3 +81,8 @@ Revision history for SWISH-Prog-KSx
 0.18    22 Feb 2011
     * bump dep for Path::Class::File::Stat to 0.03
     * fix uninit warning for UUID when no UUID is defined in the swish.xml file
+
+0.19    18 May 2011
+    * bump dep for KS 0.313
+    * fix class names for FieldType to Plan to avoid compat stub bug
+

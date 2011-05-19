@@ -2,16 +2,16 @@ package SWISH::Prog::KSx::Indexer;
 use strict;
 use warnings;
 
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 use base qw( SWISH::Prog::Indexer );
 use SWISH::Prog::KSx::InvIndex;
 
 use KinoSearch::Index::Indexer;
 use KinoSearch::Plan::Schema;
+use KinoSearch::Plan::FullTextType;
+use KinoSearch::Plan::StringType;
 use KinoSearch::Analysis::PolyAnalyzer;
-use KinoSearch::FieldType::FullTextType;
-use KinoSearch::FieldType::StringType;
 
 use Carp;
 use SWISH::3 qw( :constants );
@@ -139,9 +139,8 @@ sub init {
 
     $self->{_fields} = \%fields;
 
-    my $property_only
-        = KinoSearch::FieldType::StringType->new( sortable => 1, );
-    my $store_no_sort = KinoSearch::FieldType::StringType->new(
+    my $property_only = KinoSearch::Plan::StringType->new( sortable => 1, );
+    my $store_no_sort = KinoSearch::Plan::StringType->new(
         sortable => 0,
         stored   => 1,
     );
@@ -165,9 +164,11 @@ sub init {
                 $field->{store_as}->{$key} = 1;
                 next;
             }
+
+            #warn "spec meta $name";
             $schema->spec_field(
                 name => $name,
-                type => KinoSearch::FieldType::FullTextType->new(
+                type => KinoSearch::Plan::FullTextType->new(
                     analyzer => $analyzer,
                     stored   => 0,
                     boost    => $field->{bias} || 1.0,
@@ -189,9 +190,11 @@ sub init {
                 $key = $field->{is_prop_alias};
                 $field->{store_as}->{$key} = 1;
             }
+
+            #warn "spec meta+prop $name";
             $schema->spec_field(
                 name => $name,
-                type => KinoSearch::FieldType::FullTextType->new(
+                type => KinoSearch::Plan::FullTextType->new(
                     analyzer      => $analyzer,
                     highlightable => 1,
                     sortable      => $field->{sortable},
@@ -208,6 +211,8 @@ sub init {
                 $field->{store_as}->{$key} = 1;
                 next;
             }
+
+            #warn "spec prop !sort $name";
             $schema->spec_field(
                 name => $name,
                 type => $store_no_sort
@@ -222,6 +227,8 @@ sub init {
                 $field->{store_as}->{$key} = 1;
                 next;
             }
+
+            #warn "spec prop sort $name";
             $schema->spec_field(
                 name => $name,
                 type => $property_only
@@ -284,7 +291,7 @@ sub _add_new_field {
     if ( $field->{is_prop} ) {
         $self->{__ks}->{schema}->spec_field(
             name => $name,
-            type => KinoSearch::FieldType::FullTextType->new(
+            type => KinoSearch::Plan::FullTextType->new(
                 analyzer      => $self->{__ks}->{analyzer},
                 highlightable => 1,
                 sortable      => $field->{sortable},
@@ -298,7 +305,7 @@ sub _add_new_field {
 
         $self->{__ks}->{schema}->spec_field(
             name => $name,
-            type => KinoSearch::FieldType::FullTextType->new(
+            type => KinoSearch::Plan::FullTextType->new(
                 analyzer => $self->{__ks}->{analyzer},
                 stored   => 0,
                 boost    => $field->{bias} || 1.0,

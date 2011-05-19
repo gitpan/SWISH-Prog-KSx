@@ -21,7 +21,7 @@ WriteMakefile(
     PL_FILES  => {},
     PREREQ_PM => {
         'Test::More'                  => 0,
-        'KinoSearch'                  => '0.31',
+        'KinoSearch'                  => '0.313',
         'SWISH::Prog'                 => 0.49,
         'SWISH::3'                    => 0.11,
         'Sort::SQL'                   => 0.06,
