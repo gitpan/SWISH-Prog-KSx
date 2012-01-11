@@ -86,3 +86,6 @@ Revision history for SWISH-Prog-KSx
     * bump dep for KS 0.313
     * fix class names for FieldType to Plan to avoid compat stub bug
 
+0.20    12 Jan 2012
+    * fix failing tests from newer SWISH::Prog file rules
+

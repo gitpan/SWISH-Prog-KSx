@@ -146,8 +146,13 @@ sub make_program {
 
     # skip the index dir every time
     # the '1' arg indicates to append the value, not replace.
-    $program->config->FileRules( 'dirname is index.swish', 1 );
-    $program->config->FileRules( 'filename is config.xml', 1 );
+    $program->config->FileRules( 'dirname is index.swish',               1 );
+    $program->config->FileRules( 'filename is config.xml',               1 );
+    $program->config->FileRules( 'filename is config-nostemmer.xml',     1 );
+    $program->config->FileRules( 'filename contains \.t',                1 );
+    $program->config->FileRules( 'dirname contains (testindex|\.index)', 1 );
+    $program->config->FileRules( 'filename contains \.conf',             1 );
+    $program->config->FileRules( 'dirname contains mailfs',              1 );
 
     return $program;
 }
