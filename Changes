@@ -89,3 +89,6 @@ Revision history for SWISH-Prog-KSx
 0.20    12 Jan 2012
     * fix failing tests from newer SWISH::Prog file rules
 
+0.21    2 Apr 2012
+    * add t/05-utf8.t to test UTF-8 strings
+

@@ -24,7 +24,7 @@ my $program = make_program();
 
 ok( $program->index('t/'), "run program" );
 
-is( $program->count, 2, "indexed test docs" );
+is( $program->count, 3, "indexed test docs" );
 
 ok( my $searcher
         = SWISH::Prog::KSx::Searcher->new( invindex => 't/index.swish', ),

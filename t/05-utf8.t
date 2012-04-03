@@ -1,6 +1,13 @@
-use Test::More tests => 31;
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Test::More tests => 12;
 use strict;
 use Data::Dump qw( dump );
+use Search::Tools::UTF8;
+
+#binmode Test::More->builder->output,         ":utf8";
+#binmode Test::More->builder->failure_output, ":utf8";
 
 use_ok('SWISH::Prog');
 use_ok('SWISH::Prog::KSx::InvIndex');
@@ -13,11 +20,28 @@ ok( my $invindex = SWISH::Prog::KSx::InvIndex->new(
     "new invindex"
 );
 
-my $passes = 0;
-my $searcher;
-while ( ++$passes < 4 ) {
+my $program = make_program();
 
-    diag("pass $passes");
+ok( $program->index('t/utf8.xml'), "run program" );
+
+is( $program->count, 1, "indexed test docs" );
+
+ok( my $searcher
+        = SWISH::Prog::KSx::Searcher->new( invindex => 't/index.swish', ),
+    "new searcher"
+);
+
+ok( my $results = $searcher->search( to_utf8('niña') ), "search()" );
+
+#diag( dump $results );
+
+is( $results->hits, 1, "1 hit" );
+
+ok( $results = $searcher->search( to_utf8('banaña') ), "search()" );
+
+is( $results->hits, 1, "1 hit" );
+
+sub make_program {
     ok( my $program = SWISH::Prog->new(
             invindex   => $invindex,
             aggregator => 'fs',
@@ -40,35 +64,5 @@ while ( ++$passes < 4 ) {
     $program->config->FileRules( 'filename contains \.conf',             1 );
     $program->config->FileRules( 'dirname contains mailfs',              1 );
 
-    ok( $program->index('t/'), "run program" );
-
-    is( $program->count, 3, "indexed test docs" );
-
-    if ( !$searcher ) {
-        ok( $searcher = SWISH::Prog::KSx::Searcher->new(
-                invindex => 't/index.swish',
-            ),
-            "new searcher"
-        );
-    }
-    else {
-        pass("searcher already defined");
-    }
-    ok( my $results = $searcher->search('test'), "search()" );
-
-    #diag( dump $results );
-
-    is( $results->hits, 1, "1 hit" );
-
-    ok( my $result = $results->next, "next result" );
-
-    is( $result->uri, 't/test.html', 'get uri' );
-
-    is( $result->title, "test html doc", "get title" );
-}
-
-END {
-    unless ( $ENV{PERL_DEBUG} ) {
-        $invindex->path->rmtree;
-    }
+    return $program;
 }
